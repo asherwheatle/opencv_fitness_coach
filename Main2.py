@@ -287,6 +287,8 @@ def main():
                     lab=predict_exercise_ml(res.pose_landmarks.landmark)
                 else:
                     lab=current_ex
+                # Debug: show if pose is detected
+                draw_text(view,"POSE DETECTED",(10,140),(0,255,0),0.6,1)
                 if lab!=current_ex:
                     pending_switch.append(lab)
                     if len(pending_switch)==pending_switch.maxlen and len(set(pending_switch))==1:
@@ -321,6 +323,13 @@ def main():
             draw_text(view,f"Exercise: {current_ex.upper()}",(10,30),(10,10,10),0.9,2)
             reps_str=" | ".join([f"{k}:{COUNTERS[k].reps}" for k in COUNTERS])
             draw_text(view,f"Reps [{reps_str}]",(10,65),(30,30,30),0.85,2)
+            
+            # Debug info
+            if metric is not None:
+                draw_text(view,f"Metric: {metric:.1f}",(10,100),(100,100,100),0.6,1)
+            if current_ex in COUNTERS:
+                state = COUNTERS[current_ex].state
+                draw_text(view,f"State: {state}",(10,120),(100,100,100),0.6,1)
 
             if last_feedback and time.time()-feedback_timer<2:
                 color=(0,180,0) if "Good" in last_feedback else (0,0,200)
