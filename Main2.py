@@ -4,6 +4,7 @@ import mediapipe as mp
 import time, warnings, threading
 from collections import deque
 import pyttsx3
+from playsound import playsound
 
 # ---------- TEXT TO SPEECH ----------
 engine = pyttsx3.init()
@@ -63,6 +64,22 @@ def get(lms,idx,w,h):
 
 def ok_vis(*vals,t=0.5):
     return all(v is not None and v>=t for v in vals)
+
+GOOD_REP_SOUND_FILE = "C:\\Users\\asher\\OneDrive\\Documents\\GitHub\\fitness_coachopencv\\opencv_fitness_coach\\soundeffects\\correctbuzzer.mp3" # ⬅️ Make sure this file exists!
+BAD_REP_SOUND_FILE = "C:\\Users\\asher\\OneDrive\\Documents\\GitHub\\fitness_coachopencv\\opencv_fitness_coach\\soundeffects\\wrongbuzzer.mp3"
+
+def play_sound_async(sound_file):
+    """Play a sound file asynchronously (non-blocking)."""
+    def _play():
+        try:
+            # playsound blocks, so we run it in a separate thread
+            playsound(sound_file) 
+        except Exception as e:
+            # Handle cases where the sound file is not found or the library fails
+            print(f"Error playing sound: {e}")
+            pass
+            
+    threading.Thread(target=_play, daemon=True).start()
 
 # ---------- Distance helpers (kept from your second file; used for tips) ----------
 def stance_width(lms, w, h):
@@ -270,13 +287,15 @@ class SquatCounter:
                     self.last_rep_time = now
                     if self.bottom_feedback and "Perfect" in self.bottom_feedback:
                         self.reps += 1
-                        self.last_rep_feedback = "✅ Good squat"
+                        self.last_rep_feedback = " Good squat"
                         speak_async("Good rep")
+                        play_sound_async(GOOD_REP_SOUND_FILE)
                     else:
                         self.bad_reps += 1
                         fb = self.bottom_feedback if self.bottom_feedback else "Adjust your stance"
-                        self.last_rep_feedback = f"❌ {fb}"
+                        self.last_rep_feedback = f" {fb}"
                         speak_async(fb)
+                        play_sound_async(BAD_REP_SOUND_FILE)
                     self.last_feedback_time = now
 
                 self.state = "top"
@@ -374,14 +393,18 @@ def main():
                         if tr == "rep":
                             # --- Use form score for rep judgment from first code ---
                             if form_score >= 0.8:
-                                last_feedback = f"✅ Good pushup rep!"
+                                last_feedback = f"Good pushup rep!"
                                 speak_async("Good pushup")
+                                # 💡 ADD THIS LINE TO PLAY THE MP3
+                                play_sound_async(GOOD_REP_SOUND_FILE)
                             else:
                                 # The specific bad rep feedback is already in notes/spoken by analyze_pushup
-                                last_feedback = f"❌ Bad pushup rep - not counted!"
+                                last_feedback = f" Bad pushup rep - not counted!"
                                 speak_async("Bad pushup form")
                                 COUNTERS["pushup"].bad_reps += 1
                                 COUNTERS["pushup"].reps -= 1 if COUNTERS["pushup"].reps > 0 else 0
+                                play_sound_async(BAD_REP_SOUND_FILE)
+
                             feedback_timer = time.time()
 
                 # ---------- SQUAT PATH (KEEP ORIGINAL) ----------
