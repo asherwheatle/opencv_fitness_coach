@@ -404,6 +404,11 @@ def main():
 
                     tree.pack(expand=True, fill="both")
 
+                    # Instructions label
+                    instructions = tk.Label(root, text="Press 'p' to view past sessions, or any other key to continue...", 
+                                          font=("Arial", 10), fg="blue")
+                    instructions.pack(pady=5)
+
                     # Close button
                     close_btn = tk.Button(root, text="Close", command=root.destroy)
                     close_btn.pack(pady=5)
@@ -414,7 +419,6 @@ def main():
                 show_summary_window(session_timestamp, table_data)
                 
                 # Wait for user input after showing summary
-                print("Press 'p' to view past sessions, or any other key to continue...")
                 while True:
                     key = cv2.waitKey(0) & 0xFF
                     if key == ord('p'):
