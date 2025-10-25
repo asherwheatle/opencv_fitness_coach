@@ -62,6 +62,8 @@ class RepCounter:
         self.low, self.high, self.min_frames = low, high, min_frames
         self.state, self.frames, self.reps = "top", 0, 0
         self.last_rep_time = 0
+        self.bad_reps = 0
+        self.warnings = []
 
     def update(self, metric):
         if metric is None: return None
@@ -90,6 +92,8 @@ class RepCounter:
     def reset(self):
         self.state, self.frames, self.reps = "top", 0, 0
         self.last_rep_time = 0
+        self.bad_reps = 0
+        self.warnings.clear()
 
 COUNTERS = {
     "pushup": RepCounter(low=70, high=155),
@@ -196,6 +200,8 @@ def main():
     current_ex="plank"
     pending_switch=deque(maxlen=8)
     last_feedback=""; feedback_timer=0
+    show_summary=False
+    summary_text=[]
 
     with mp_pose.Pose(min_detection_confidence=0.5,min_tracking_confidence=0.5) as pose:
         while True:
@@ -241,6 +247,7 @@ def main():
                             else:
                                 last_feedback=f"❌ Bad {current_ex} rep – not counted!"
                                 speak_async(f"Bad {current_ex} form")
+                                COUNTERS[current_ex].bad_reps += 1
                                 COUNTERS[current_ex].reps -= 1 if COUNTERS[current_ex].reps>0 else 0
                             feedback_timer=time.time()
 
@@ -249,28 +256,43 @@ def main():
             reps_str=" | ".join([f"{k}:{COUNTERS[k].reps}" for k in COUNTERS])
             draw_text(view,f"Reps [{reps_str}]",(10,65),(30,30,30),0.85,2)
 
-            # feedback
             if last_feedback and time.time()-feedback_timer<2:
                 color=(0,180,0) if "Good" in last_feedback else (0,0,200)
                 draw_text(view,last_feedback,(10,110),color,0.85,2)
 
-            # notes
             base_y=150
             for i,n in enumerate(notes[:3]):
                 draw_text(view,f"• {n}",(10,base_y+25*i),(20,20,20),0.7,2)
 
-            cv2.imshow("Form Tracker (Voice Enabled)",view)
+            # show summary if requested
+            if show_summary:
+                draw_text(view,"=== Workout Summary ===",(10,250),(0,0,0),0.8,2)
+                for i,line in enumerate(summary_text):
+                    draw_text(view,line,(10,280+25*i),(10,10,10),0.75,2)
+
+            cv2.imshow("Form Tracker (Voice Summary)",view)
 
             key=cv2.waitKey(1)&0xFF
-            if key==ord('q'): break
+            if key==ord('q'):
+                break
             elif key==ord('s'):
                 for c in COUNTERS.values(): c.reset()
                 for q in SMOOTH.values(): q.clear()
+                show_summary=False
                 speak_async("Starting new set")
                 print("▶️ New set started.")
             elif key==ord('e'):
-                speak_async("Set ended")
-                print("⏹ Set ended.")
+                show_summary=True
+                summary_text=[]
+                print("\n===== Session Summary =====")
+                speak_async("Workout complete. Here is your summary.")
+                for ex,c in COUNTERS.items():
+                    line=f"{ex.upper()}: {c.reps} reps, {c.bad_reps} bad reps"
+                    print(line)
+                    summary_text.append(line)
+                    if c.bad_reps>0:
+                        speak_async(f"{ex} had {c.bad_reps} bad repetitions")
+                print("===========================\n")
 
     cap.release(); cv2.destroyAllWindows()
 
