@@ -405,32 +405,27 @@ def main():
                     tree.pack(expand=True, fill="both")
 
                     # Instructions label
-                    instructions = tk.Label(root, text="Press 'p' to view past sessions, or any other key to continue...", 
+                    instructions = tk.Label(root, text="Press 'p' to view past sessions, or 'Close' to continue...", 
                                           font=("Arial", 10), fg="blue")
                     instructions.pack(pady=5)
 
+                    # Button frame
+                    button_frame = tk.Frame(root)
+                    button_frame.pack(pady=5)
+
+                    # Past sessions button
+                    past_btn = tk.Button(button_frame, text="View Past Sessions", 
+                                       command=lambda: [root.destroy(), show_past_sessions()])
+                    past_btn.pack(side=tk.LEFT, padx=5)
+
                     # Close button
-                    close_btn = tk.Button(root, text="Close", command=root.destroy)
-                    close_btn.pack(pady=5)
+                    close_btn = tk.Button(button_frame, text="Close", command=root.destroy)
+                    close_btn.pack(side=tk.LEFT, padx=5)
 
                     root.mainloop()
 
                 # Show the Tkinter summary window
                 show_summary_window(session_timestamp, table_data)
-                
-                # Wait for user input after showing summary
-                while True:
-                    key = cv2.waitKey(0) & 0xFF
-                    if key == ord('p'):
-                        speak_async("Showing past workout sessions")
-                        show_past_sessions()
-                        break
-                    elif key == ord('q'):
-                        cap.release()
-                        cv2.destroyAllWindows()
-                        return
-                    else:
-                        break
     cap.release(); cv2.destroyAllWindows()
 
 if __name__=="__main__":
