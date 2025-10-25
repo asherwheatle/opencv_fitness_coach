@@ -190,9 +190,9 @@ def show_past_sessions():
     """Show past workout sessions in a Tkinter window"""
     db = SessionLocal()
     sessions = db.query(WorkoutSession).order_by(WorkoutSession.timestamp.desc()).all()
-    db.close()
     
     if not sessions:
+        db.close()
         # Show message if no sessions
         root = tk.Tk()
         root.title("Workout History")
@@ -250,6 +250,9 @@ def show_past_sessions():
                 set_data.good_reps,
                 set_data.bad_reps
             ))
+    
+    # Close database connection after loading data
+    db.close()
     
     # Add close button
     close_btn = tk.Button(root, text="Close", command=root.destroy)
