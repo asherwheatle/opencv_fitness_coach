@@ -38,9 +38,11 @@ L = mp_pose.PoseLandmark
 
 # ---------- Config ----------
 CFG = {
-    "pushup": {"min_down": 120, "max_up": 160},
+    # --- PUSHUP CONFIG FROM FIRST CODE ---
+    "pushup": {"nice_elbow_min": 80, "nice_elbow_max": 150},
+    # --- SQUAT CONFIG (KEEP ORIGINAL) ---
     # Squat thresholds here are for *depth phase gating* (hip depth). The stance judgment happens at the bottom.
-    "squat":  {"min_down": 60, "max_up": 130},   # <-- from your working squat code
+    "squat": {"min_down": 60, "max_up": 130}, 
 }
 
 # ---------- Utilities ----------
@@ -113,7 +115,8 @@ class RepCounter:
         elif self.state == "going_up":
             self.frames += 1
             if metric >= self.high and self.frames >= self.min_frames:
-                if now - self.last_rep_time > 0.6:
+                # --- KEEPING FIRST CODE'S REP TIME GATE ---
+                if now - self.last_rep_time > 0.7: 
                     self.state, self.frames = "top", 0
                     self.reps += 1
                     self.last_rep_time = now
@@ -126,7 +129,8 @@ class RepCounter:
 
 # ---------- Counters ----------
 COUNTERS = {
-    "pushup": RepCounter(low=70, high=155),   # keep your pushup detection as-is
+    # --- PUSHUP COUNTER FROM FIRST CODE ---
+    "pushup": RepCounter(low=70, high=155),
 }
 # Note: squat will use its *own* specialized counter below.
 
@@ -137,44 +141,55 @@ def smooth_metric(name,val):
     q = SMOOTH[name]; q.append(float(val))
     return float(np.mean(q))
 
-# ---------- ANALYSIS: PUSHUP (unchanged; keep what works for you) ----------
-def analyze_pushup(lms,w,h):
+# --- ANALYSIS: PUSHUP (REPLACED WITH FIRST CODE'S VERSION) ---
+def analyze_pushup(lms,w,h,notes):
     ls,le,lw = get(lms,L.LEFT_SHOULDER,w,h),get(lms,L.LEFT_ELBOW,w,h),get(lms,L.LEFT_WRIST,w,h)
     rs,re,rw = get(lms,L.RIGHT_SHOULDER,w,h),get(lms,L.RIGHT_ELBOW,w,h),get(lms,L.RIGHT_WRIST,w,h)
+    okL,okR = ok_vis(ls[2],le[2],lw[2]), ok_vis(rs[2],re[2],rw[2])
     elbows=[]
-    if ok_vis(ls[2],le[2],lw[2]): elbows.append(angle_3pt(ls,le,lw))
-    if ok_vis(rs[2],re[2],rw[2]): elbows.append(angle_3pt(rs,re,rw))
-    if not elbows: return None
-    return float(np.mean(elbows))
+    if okL: elbows.append(angle_3pt(ls,le,lw))
+    if okR: elbows.append(angle_3pt(rs,re,rw))
+    if not elbows: return None, 1.0
+    elbow_mean=np.mean(elbows)
+    form_score=1.0
+    
+    # --- Form check logic from first code ---
+    if elbow_mean < CFG["pushup"]["nice_elbow_min"] or elbow_mean > CFG["pushup"]["nice_elbow_max"]:
+        form_score-=0.2
+        msg="Adjust arm range — spread out arms"
+        notes.append(msg)
+        speak_async(msg)
+    return elbow_mean, form_score
+# -----------------------------------------------------------------
 
-# ---------- ANALYSIS: SQUAT (ported from your working first script) ----------
+# ---------- ANALYSIS: SQUAT (KEEP ORIGINAL) ----------
 def analyze_squat_depth_and_ratio(lms, w, h):
     """Return: depth, ratio, hip_y, knee_y.
-       depth = (avg_ankle_y - avg_hip_y): larger => deeper.
-       ratio = knee_distance / shoulder_distance (live).
+        depth = (avg_ankle_y - avg_hip_y): larger => deeper.
+        ratio = knee_distance / shoulder_distance (live).
     """
     rh = get(lms, L.RIGHT_HIP, w, h)
-    lh = get(lms, L.LEFT_HIP,  w, h)
+    lh = get(lms, L.LEFT_HIP, w, h)
     ra = get(lms, L.RIGHT_ANKLE, w, h)
-    la = get(lms, L.LEFT_ANKLE,  w, h)
+    la = get(lms, L.LEFT_ANKLE, w, h)
     rk = get(lms, L.RIGHT_KNEE, w, h)
-    lk = get(lms, L.LEFT_KNEE,  w, h)
+    lk = get(lms, L.LEFT_KNEE, w, h)
     rs = get(lms, L.RIGHT_SHOULDER, w, h)
-    ls = get(lms, L.LEFT_SHOULDER,  w, h)
+    ls = get(lms, L.LEFT_SHOULDER, w, h)
 
     hip_y = knee_y = depth = ratio = None
 
     if ok_vis(rh[2], lh[2], ra[2], la[2]):
-        hip_y   = (rh[1] + lh[1]) / 2.0
+        hip_y  = (rh[1] + lh[1]) / 2.0
         ankle_y = (ra[1] + la[1]) / 2.0
-        depth   = ankle_y - hip_y
+        depth  = ankle_y - hip_y
 
     if ok_vis(rk[2], lk[2]):
-        knee_y  = (rk[1] + lk[1]) / 2.0
+        knee_y = (rk[1] + lk[1]) / 2.0
 
     if ok_vis(ls[2], rs[2], lk[2], rk[2]):
         shoulder_dist = np.linalg.norm(np.array(ls[:2]) - np.array(rs[:2]))
-        knee_dist     = np.linalg.norm(np.array(lk[:2]) - np.array(rk[:2]))
+        knee_dist = np.linalg.norm(np.array(lk[:2]) - np.array(rk[:2]))
         ratio = (knee_dist / shoulder_dist) if shoulder_dist != 0 else None
 
     return depth, ratio, hip_y, knee_y
@@ -189,19 +204,19 @@ def stance_feedback(ratio):
     else:
         return "Perfect! Keep going!"
 
-# ---------- Specialized SquatCounter (from your working logic) ----------
+# ---------- Specialized SquatCounter (KEEP ORIGINAL) ----------
 class SquatCounter:
     """Counts ONLY 'perfect' reps:
-       - Capture stance *at bottom* (pelvis below knees).
-       - On rise above knees, count rep only if bottom stance was Perfect.
+        - Capture stance *at bottom* (pelvis below knees).
+        - On rise above knees, count rep only if bottom stance was Perfect.
     """
     def __init__(self, min_down=CFG["squat"]["min_down"], max_up=CFG["squat"]["max_up"], min_frames=2):
         self.low, self.high, self.min_frames = min_down, max_up, min_frames
         self.state = "top"
         self.frames = 0
 
-        self.reps = 0           # good reps only
-        self.bad_reps = 0       # bad attempts
+        self.reps = 0  # good reps only
+        self.bad_reps = 0  # bad attempts
 
         self.bottom_reached = False
         self.max_hip_y = None
@@ -220,7 +235,7 @@ class SquatCounter:
             return None
 
         now = time.time()
-        below_knee = (hip_y > knee_y)  # image y goes downward
+        below_knee = (hip_y > knee_y) # image y goes downward
 
         if self.state == "top":
             if depth >= self.high:
@@ -270,7 +285,7 @@ class SquatCounter:
 # instantiate squat counter
 SQUAT_COUNTER = SquatCounter()
 
-# ---------- ML prediction (unchanged) ----------
+# ---------- ML prediction (KEEP ORIGINAL) ----------
 EX_BUF = deque(maxlen=12)
 def predict_exercise_ml(lms):
     if not USE_ML or EX_MODEL is None: return "plank"
@@ -284,34 +299,14 @@ def predict_exercise_ml(lms):
     labs,cnts = np.unique(list(EX_BUF),return_counts=True)
     return labs[np.argmax(cnts)]
 
-# ---------- Drawing helper ----------
+# ---------- Drawing helper (KEEP ORIGINAL) ----------
 def draw_text(view, text, pos, color=(10,10,10), scale=0.8, thick=2):
     x, y = pos
     cv2.putText(view, text, (x+2, y+2), cv2.FONT_HERSHEY_SIMPLEX, scale, (255,255,255), thick+3)
     cv2.putText(view, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, scale, color, thick)
 
-# ---------- Recommendation (kept for pushup feedback) ----------
-def get_recommendation(ex_type, metric, lms, w, h):
-    distance = estimate_camera_distance(lms, w, h)
-    width = stance_width(lms, w, h)
-    knees = knee_distance(lms, w, h)
-
-    center_knee = 65 * (distance / 0.9)
-    ideal_knee_min = center_knee - 12.5
-    ideal_knee_max = center_knee + 12.5
-
-    if ex_type == "pushup":
-        if metric is None: return ""
-        if metric > CFG["pushup"]["max_up"]:
-            return "Go all the way down"
-        elif metric < CFG["pushup"]["min_down"]:
-            return "Go all the way up"
-        elif 85 < metric < 120:
-            return "Adjust arm range — spread out arms"
-    elif ex_type == "squat":
-        # We now judge squats via the bottom-stance logic, not here.
-        return ""
-    return ""
+# ---------- Recommendation (REMOVED - now in analyze_pushup) ----------
+# The previous get_recommendation function is now obsolete as the new analyze_pushup handles form analysis.
 
 # ---------- Main ----------
 def main():
@@ -325,7 +320,7 @@ def main():
     pending_switch = deque(maxlen=8)
     last_feedback = ""
     feedback_timer = 0
-    bad_last = False
+    # bad_last is no longer needed since pushup analysis gives a single form_score
 
     with mp_pose.Pose(min_detection_confidence=0.5,min_tracking_confidence=0.5) as pose:
         while True:
@@ -336,6 +331,10 @@ def main():
             h, w = frame.shape[:2]
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             res = pose.process(rgb)
+            
+            # --- Notes array for pushup feedback (from first code) ---
+            notes = []
+            form_score = 1.0
 
             if res.pose_landmarks:
                 mp_draw.draw_landmarks(view, res.pose_landmarks, mp_pose.POSE_CONNECTIONS)
@@ -349,8 +348,11 @@ def main():
                     pending_switch.append(lab)
                     if len(pending_switch) == pending_switch.maxlen and len(set(pending_switch)) == 1:
                         current_ex = lab; pending_switch.clear()
+                        # Reset all counters on exercise switch
+                        for c in COUNTERS.values(): c.reset()
+                        SQUAT_COUNTER.reset()
 
-                # Distance info (optional overlay)
+                # Distance info (optional overlay) - KEEP
                 distance = estimate_camera_distance(res.pose_landmarks.landmark, w, h)
                 knees_px = knee_distance(res.pose_landmarks.landmark, w, h)
                 ideal_knee_min = 60 * (distance / 0.9)
@@ -358,29 +360,31 @@ def main():
                 draw_text(view, f"Distance: {distance:.2f} m", (10, 100), (150,100,255), 0.7, 2)
                 if knees_px:
                     draw_text(view, f"KneeDist: {int(knees_px)} px (ideal {int(ideal_knee_min)}–{int(ideal_knee_max)})",
-                              (10, 125), (120,50,220), 0.7, 2)
+                             (10, 125), (120,50,220), 0.7, 2)
 
-                # ---------- PUSHUP PATH (unchanged counting) ----------
+                # ---------- PUSHUP PATH (UPDATED with first code's logic) ----------
                 if current_ex == "pushup":
-                    metric_raw = analyze_pushup(res.pose_landmarks.landmark, w, h)
+                    # analyze_pushup now returns (metric_raw, form_score) AND appends to notes
+                    result = analyze_pushup(res.pose_landmarks.landmark, w, h, notes)
+                    metric_raw, form_score = result
                     metric = smooth_metric("pushup", metric_raw)
 
                     if metric is not None:
                         tr = COUNTERS["pushup"].update(metric)
                         if tr == "rep":
-                            reco = get_recommendation("pushup", metric, res.pose_landmarks.landmark, w, h)
-                            if reco:
-                                speak_async(reco)
-                                last_feedback = f"Tip: {reco}"
-                                bad_last = True
-                                COUNTERS["pushup"].bad_reps += 1
-                            else:
+                            # --- Use form score for rep judgment from first code ---
+                            if form_score >= 0.8:
                                 last_feedback = f"✅ Good pushup rep!"
-                                bad_last = False
-                                speak_async("Good rep")
+                                speak_async("Good pushup")
+                            else:
+                                # The specific bad rep feedback is already in notes/spoken by analyze_pushup
+                                last_feedback = f"❌ Bad pushup rep - not counted!"
+                                speak_async("Bad pushup form")
+                                COUNTERS["pushup"].bad_reps += 1
+                                COUNTERS["pushup"].reps -= 1 if COUNTERS["pushup"].reps > 0 else 0
                             feedback_timer = time.time()
 
-                # ---------- SQUAT PATH (replaced with robust logic) ----------
+                # ---------- SQUAT PATH (KEEP ORIGINAL) ----------
                 elif current_ex == "squat":
                     depth, ratio, hip_y, knee_y = analyze_squat_depth_and_ratio(
                         res.pose_landmarks.landmark, w, h
@@ -391,7 +395,7 @@ def main():
                         fb = stance_feedback(ratio)
                         color = (0, 200, 0) if "Perfect" in fb else (0, 0, 255) if "Bring" in fb else (255, 200, 0)
                         draw_text(view, f"Knee/Shoulder Ratio: {ratio:.2f}", (10, 155), color, 0.8, 2)
-
+                        
                     # Update squat counter (only counts perfect reps at bottom)
                     SQUAT_COUNTER.update(depth, hip_y, knee_y, ratio)
 
@@ -399,25 +403,31 @@ def main():
                     if time.time() - SQUAT_COUNTER.last_feedback_time < 2 and SQUAT_COUNTER.last_rep_feedback:
                         good = SQUAT_COUNTER.last_rep_feedback.startswith("✅")
                         draw_text(view, SQUAT_COUNTER.last_rep_feedback, (10, 185),
-                                  (0,200,0) if good else (0,0,255), 0.8, 2)
+                                 (0,200,0) if good else (0,0,255), 0.8, 2)
 
             # HUD
             draw_text(view,f"Exercise: {current_ex.upper()}",(10,30),(10,10,10),0.9,2)
             # Pushup reps (good & bad from COUNTERS)
             pu = COUNTERS["pushup"]
-            pu_total = pu.reps + pu.bad_reps
             draw_text(view,f"Pushups: Good={pu.reps} Bad={pu.bad_reps}",(10,65),(30,30,30),0.85,2)
             # Squat reps from specialized counter
-            draw_text(view,f"Squats:  Good={SQUAT_COUNTER.reps} Bad={SQUAT_COUNTER.bad_reps}",
+            draw_text(view,f"Squats: Good={SQUAT_COUNTER.reps} Bad={SQUAT_COUNTER.bad_reps}",
                       (10,90),(30,30,30),0.85,2)
 
-            # Recent pushup feedback bubble
+            # Recent pushup feedback bubble OR squat ratio info
             if current_ex == "pushup":
                 if time.time()-feedback_timer<2 and last_feedback:
-                    color = (0,180,0) if not bad_last else (0,0,255)
+                    color = (0,180,0) if last_feedback.startswith("✅") else (0,0,200)
                     draw_text(view,last_feedback,(10,185),color,0.8,2)
+                
+                # --- Show pushup notes/tips from analyze_pushup (from first code) ---
+                base_y = 215 
+                for i,n in enumerate(notes[:2]): # Show up to 2 notes
+                    draw_text(view,f"• {n}",(10,base_y+25*i),(20,20,20),0.7,2)
+            
+            # --- Squat displays its ratio/feedback already, no change needed ---
 
-            cv2.imshow("Form Tracker (Pushups stable + Squats robust)", view)
+            cv2.imshow("Form Tracker (Merged Logic)", view)
 
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
