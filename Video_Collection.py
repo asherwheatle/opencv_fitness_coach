@@ -22,6 +22,7 @@ import csv, os
 #       vid4.mp4
 #   planks/
 #       vid5.mp4
+
 DATA_DIR = "data"
 OUTPUT_CSV = "exercise_data.csv"
 
@@ -39,6 +40,8 @@ with open(OUTPUT_CSV, "w", newline="") as f:
         header += [f"x{i}", f"y{i}"]
     header.append("label")
     writer.writerow(header)
+
+
 
 # ---------- Process all videos ----------
 for label in os.listdir(DATA_DIR):
