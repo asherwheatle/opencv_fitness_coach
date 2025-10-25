@@ -22,7 +22,8 @@ import csv, os
 #       vid4.mp4
 #   planks/
 #       vid5.mp4
-DATA_DIR = "data"
+
+DATA_DIR = r"C:\Users\asher\OneDrive\Documents\GitHub\fitness_coachopencv\opencv_fitness_coach\data"
 OUTPUT_CSV = "exercise_data.csv"
 
 # Initialize MediaPipe Pose
@@ -83,3 +84,4 @@ for label in os.listdir(DATA_DIR):
         cap.release()
 
 print("\n✅ Done! All video landmarks saved to", OUTPUT_CSV)
+
