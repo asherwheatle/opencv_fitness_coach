@@ -185,6 +185,78 @@ def draw_text(view, text, pos, color=(10,10,10), scale=0.8, thick=2):
     cv2.putText(view, text, (x+2, y+2), cv2.FONT_HERSHEY_SIMPLEX, scale, (255,255,255), thick+3)
     cv2.putText(view, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, scale, color, thick)
 
+# ---------- Past Sessions Viewer ----------
+def show_past_sessions():
+    """Show past workout sessions in a Tkinter window"""
+    db = SessionLocal()
+    sessions = db.query(WorkoutSession).order_by(WorkoutSession.timestamp.desc()).all()
+    db.close()
+    
+    if not sessions:
+        # Show message if no sessions
+        root = tk.Tk()
+        root.title("Workout History")
+        root.geometry("400x200")
+        
+        label = tk.Label(root, text="No workout sessions found.", font=("Arial", 12))
+        label.pack(expand=True)
+        
+        close_btn = tk.Button(root, text="Close", command=root.destroy)
+        close_btn.pack(pady=10)
+        
+        root.mainloop()
+        return
+    
+    # Create main window
+    root = tk.Tk()
+    root.title("Workout History")
+    root.geometry("800x600")
+    
+    # Create frame for treeview and scrollbar
+    frame = tk.Frame(root)
+    frame.pack(fill="both", expand=True, padx=10, pady=10)
+    
+    # Create treeview
+    tree = ttk.Treeview(frame, columns=("Session", "Date", "Exercise", "Good Reps", "Bad Reps"), show="headings")
+    
+    # Configure columns
+    tree.heading("Session", text="Session ID")
+    tree.heading("Date", text="Date & Time")
+    tree.heading("Exercise", text="Exercise")
+    tree.heading("Good Reps", text="Good Reps")
+    tree.heading("Bad Reps", text="Bad Reps")
+    
+    tree.column("Session", width=80)
+    tree.column("Date", width=150)
+    tree.column("Exercise", width=120)
+    tree.column("Good Reps", width=100)
+    tree.column("Bad Reps", width=100)
+    
+    # Add scrollbar
+    scrollbar = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
+    tree.configure(yscrollcommand=scrollbar.set)
+    
+    # Pack treeview and scrollbar
+    tree.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+    
+    # Insert data
+    for session in sessions:
+        for set_data in session.sets:
+            tree.insert("", "end", values=(
+                session.id,
+                session.timestamp.strftime('%Y-%m-%d %H:%M'),
+                set_data.exercise.title(),
+                set_data.good_reps,
+                set_data.bad_reps
+            ))
+    
+    # Add close button
+    close_btn = tk.Button(root, text="Close", command=root.destroy)
+    close_btn.pack(pady=10)
+    
+    root.mainloop()
+
 # ---------- Main ----------
 def main():
     print("Keys: s=start set, e=end set, q=quit")
@@ -340,6 +412,21 @@ def main():
 
                 # Show the Tkinter summary window
                 show_summary_window(session_timestamp, table_data)
+                
+                # Wait for user input after showing summary
+                print("Press 'p' to view past sessions, or any other key to continue...")
+                while True:
+                    key = cv2.waitKey(0) & 0xFF
+                    if key == ord('p'):
+                        speak_async("Showing past workout sessions")
+                        show_past_sessions()
+                        break
+                    elif key == ord('q'):
+                        cap.release()
+                        cv2.destroyAllWindows()
+                        return
+                    else:
+                        break
     cap.release(); cv2.destroyAllWindows()
 
 if __name__=="__main__":
