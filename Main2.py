@@ -362,6 +362,7 @@ def main():
 
                 print("\n===== Session Summary =====")
                 for ex, c in COUNTERS.items():
+                    print(f"DEBUG: {ex} - good_reps: {c.reps}, bad_reps: {c.bad_reps}")
                     # Save each exercise as a WorkoutSet
                     new_set = WorkoutSet(
                         session_id=new_session.id,
@@ -381,11 +382,15 @@ def main():
 
                 # Commit changes
                 db.commit()
+                print("✅ Workout session saved.")
 
                 # ✅ Capture timestamp BEFORE closing session to avoid DetachedInstanceError
                 session_timestamp = new_session.timestamp
                 db.close()
-                print("✅ Workout session saved.")
+
+                # Reset counters after saving data
+                for c in COUNTERS.values(): c.reset()
+                for q in SMOOTH.values(): q.clear()
 
                 # --- Tkinter table window ---
 
