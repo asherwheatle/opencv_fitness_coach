@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Fitness Coach</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 3em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+
+        .video-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        #videoFeed {
+            width: 100%;
+            border-radius: 10px;
+            display: block;
+            background: #000;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .exercise-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .exercise-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .exercise-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .rep-counter {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .rep-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .rep-card h3 {
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .rep-card .count {
+            font-size: 3em;
+            font-weight: bold;
+        }
+
+        .feedback-box {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .feedback-good {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .feedback-bad {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+
+        .feedback-neutral {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .notes {
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .note-item {
+            padding: 10px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            font-size: 14px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .status-connected {
+            background: #38ef7d;
+            color: white;
+        }
+
+        .status-disconnected {
+            background: #f45c43;
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-item .label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-item .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideInModal 0.3s;
+        }
+
+        @keyframes slideInModal {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 15px;
+        }
+
+        .modal-header h2 {
+            color: #667eea;
+            margin: 0;
+        }
+
+        .close-btn {
+            font-size: 30px;
+            cursor: pointer;
+            color: #999;
+            background: none;
+            border: none;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .history-item {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s;
+        }
+
+        .history-item:hover {
+            transform: translateX(5px);
+        }
+
+        .history-item h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .history-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .history-stat {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .history-stat .exercise-name {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 8px;
+            text-transform: capitalize;
+        }
+
+        .history-stat .stat-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .good-count {
+            color: #38ef7d;
+            font-weight: bold;
+        }
+
+        .bad-count {
+            color: #f45c43;
+            font-weight: bold;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .pulse {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            z-index: 2000;
+            animation: slideInRight 0.3s;
+            max-width: 300px;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(400px); }
+            to { transform: translateX(0); }
+        }
+
+        .notification.success {
+            border-left: 4px solid #38ef7d;
+        }
+
+        .notification.error {
+            border-left: 4px solid #f45c43;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hidden audio elements for sound effects -->
+    <audio id="goodRepSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBzOM0fPTgjMGHm7A7+OZUQ0PVKzn7K5aGAg+muHwwW8gBSuBzvHaizsIGGS57OihUQ0PUKzn7K5aGAg+muHwwW8gBSuBzvHaizsIF2S57OihUQ0PUKzn7K5aGAg+muHwwW8gBSuBzvHaizsIF2S57OihUQ0PUKzn7K5aGAg+muHwwW8gBSuBzvHaizsIF2S57OihUQ0PUKzn7K5aGAg+muHwwW8gBSuBzvHaizsIF2S57OihUQ0PUKzn7K5aGA==" type="audio/wav">
+    </audio>
+    <audio id="badRepSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAAB4cnNwZ2hlZ2dmZWNhX11cW1lYV1ZVU1JTUVBQT05OTUxMTEtLSkpJSUhIR0dHRkZGRUVFREREQ0NDQ0JCQkJBQUFBQEBAQD8/Pz8+Pj4+Pj09PT09PDw8PDw7Ozs7Ozo6Ojo6OTk5OTk4ODg4ODg3Nzc3Nzc2NjY2NjY1NTU1NTU0NDQ0NDQzMzMzMzMzMjIyMjIyMjExMTExMTExMDAwMDAwMDAvLy8vLy8vLy4uLi4uLi4uLi0tLS0tLS0tLS0sLCwsLCwsLCwsKysrKysrKysrKysqKioqKioqKioqKioqKSkpKSkpKSkpKSkpKSkpKCgoKCgoKCgoKCgoKCgoKCcnJycnJycnJycnJycnJycnJycmJiYmJiYmJiYmJiYmJiYmJiYmJiYl" type="audio/wav">
+    </audio>
+
+    <div class="container">
+        <h1>🏋️REP RIGHT</h1>
+        
+        <div class="main-grid">
+            <!-- Video Feed -->
+            <div class="video-container">
+                <span class="status status-disconnected" id="status">Disconnected</span>
+                <img id="videoFeed" src="" alt="Video Feed">
+                
+                <div class="controls">
+                    <button class="btn-primary" id="startBtn" onclick="connectWebSocket()">Start Session</button>
+                    <button class="btn-danger" id="stopBtn" onclick="disconnectWebSocket()" disabled>Stop Session</button>
+                    <button class="btn-success" onclick="saveWorkout()">💾 Save Workout</button>
+                    <button class="btn-info" onclick="showHistory()">📊 View History</button>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Exercise Selection -->
+                <div class="card">
+                    <h2>Exercise</h2>
+                    <div class="exercise-selector">
+                        <button class="exercise-btn active" onclick="changeExercise('pushup')">Push-ups</button>
+                        <button class="exercise-btn" onclick="changeExercise('squat')">Squats</button>
+                    </div>
+                    <div id="currentExercise" style="text-align: center; font-size: 1.2em; margin-top: 10px; color: #667eea; font-weight: bold;">
+                        Current: Push-ups
+                    </div>
+                </div>
+
+                <!-- Rep Counter -->
+                <div class="card">
+                    <h2>Rep Count</h2>
+                    <div class="rep-counter">
+                        <div class="rep-card">
+                            <h3>PUSH-UPS</h3>
+                            <div class="count" id="pushupReps">0</div>
+                        </div>
+                        <div class="rep-card">
+                            <h3>SQUATS</h3>
+                            <div class="count" id="squatReps">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="label">Good Reps</div>
+                            <div class="value" id="goodReps" style="color: #38ef7d;">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="label">Bad Reps</div>
+                            <div class="value" id="badReps" style="color: #f45c43;">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="card">
+                    <h2>Tips & Corrections</h2>
+                    <div class="notes" id="notes">
+                        <div style="color: #999; font-style: italic;">No tips yet - keep going!</div>
+                    </div>
+                    <button onclick="clearTips()" style="margin-top: 10px; padding: 8px 16px; background: #f0f0f0; color: #666; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">Clear Tips</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Workout History</h2>
+                <button class="close-btn" onclick="closeHistory()">&times;</button>
+            </div>
+            <div id="historyContent">
+                <div class="empty-state">
+                    <div class="empty-state-icon">⏳</div>
+                    <p>Loading workout history...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let currentExercise = 'pushup';
+        let tipsHistory = [];
+        const MAX_TIPS = 10;
+
+        // Audio context for playing sounds
+        const goodRepAudio = document.getElementById('goodRepSound');
+        const badRepAudio = document.getElementById('badRepSound');
+
+        function playSound(type) {
+            try {
+                if (type === 'good') {
+                    goodRepAudio.currentTime = 0;
+                    goodRepAudio.play().catch(e => console.log('Audio play failed:', e));
+                } else if (type === 'bad') {
+                    badRepAudio.currentTime = 0;
+                    badRepAudio.play().catch(e => console.log('Audio play failed:', e));
+                }
+            } catch (e) {
+                console.log('Sound playback error:', e);
+            }
+        }
+
+        function addTip(tip) {
+            const timestamp = new Date().toLocaleTimeString();
+            tipsHistory.unshift({ text: tip, time: timestamp });
+            
+            // Keep only latest tips
+            if (tipsHistory.length > MAX_TIPS) {
+                tipsHistory = tipsHistory.slice(0, MAX_TIPS);
+            }
+            
+            updateTipsDisplay();
+        }
+
+        function updateTipsDisplay() {
+            const notesDiv = document.getElementById('notes');
+            
+            if (tipsHistory.length === 0) {
+                notesDiv.innerHTML = '<div style="color: #999; font-style: italic;">No tips yet - keep going!</div>';
+            } else {
+                notesDiv.innerHTML = tipsHistory.map(tip => 
+                    `<div class="note-item">
+                        <strong>${tip.time}</strong><br>
+                        💡 ${tip.text}
+                    </div>`
+                ).join('');
+            }
+        }
+
+        function clearTips() {
+            tipsHistory = [];
+            updateTipsDisplay();
+        }
+
+        function connectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                return;
+            }
+
+            ws = new WebSocket('ws://localhost:8000/ws');
+
+            ws.onopen = () => {
+                console.log('Connected to server');
+                document.getElementById('status').textContent = 'Connected';
+                document.getElementById('status').className = 'status status-connected';
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                // Handle workout saved message
+                if (data.action === 'workout_saved') {
+                    showNotification(data.message, 'success');
+                    return;
+                }
+                
+                // Update video feed
+                document.getElementById('videoFeed').src = 'data:image/jpeg;base64,' + data.frame;
+                
+                // Update reps
+                document.getElementById('pushupReps').textContent = data.reps.pushup || 0;
+                document.getElementById('squatReps').textContent = data.reps.squat || 0;
+                
+                // Update good/bad reps
+                const totalGood = Object.values(data.good_reps).reduce((a, b) => a + b, 0);
+                const totalBad = Object.values(data.bad_reps).reduce((a, b) => a + b, 0);
+                document.getElementById('goodReps').textContent = totalGood;
+                document.getElementById('badReps').textContent = totalBad;
+                
+                // Handle sound events
+                if (data.sound_event) {
+                    playSound(data.sound_event);
+                }
+                
+                // Update tips/notes
+                if (data.notes && data.notes.length > 0) {
+                    data.notes.forEach(note => {
+                        // Only add unique tips
+                        if (!tipsHistory.some(t => t.text === note)) {
+                            addTip(note);
+                        }
+                    });
+                }
+                
+                // Update current exercise display
+                document.getElementById('currentExercise').textContent = 
+                    `Current: ${data.exercise.charAt(0).toUpperCase() + data.exercise.slice(1)}`;
+            };
+
+            ws.onclose = () => {
+                console.log('Disconnected from server');
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('status').className = 'status status-disconnected';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function changeExercise(exercise) {
+            currentExercise = exercise;
+            
+            // Update button states
+            document.querySelectorAll('.exercise-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Send command to server
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    action: 'change_exercise',
+                    exercise: exercise
+                }));
+            }
+        }
+
+        function saveWorkout() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    action: 'save_workout'
+                }));
+            } else {
+                showNotification('Please start a session first!', 'error');
+            }
+        }
+
+        async function showHistory() {
+            document.getElementById('historyModal').style.display = 'block';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/workout-history');
+                const data = await response.json();
+                
+                const historyContent = document.getElementById('historyContent');
+                
+                if (data.status === 'success' && data.sessions.length > 0) {
+                    historyContent.innerHTML = data.sessions.map(session => `
+                        <div class="history-item">
+                            <h3>📅 ${session.timestamp}</h3>
+                            <div class="history-stats">
+                                ${session.exercises.map(ex => `
+                                    <div class="history-stat">
+                                        <div class="exercise-name">${ex.exercise}</div>
+                                        <div class="stat-line">
+                                            <span>Good Reps:</span>
+                                            <span class="good-count">${ex.good_reps}</span>
+                                        </div>
+                                        <div class="stat-line">
+                                            <span>Bad Reps:</span>
+                                            <span class="bad-count">${ex.bad_reps}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    historyContent.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📭</div>
+                            <p>No workout history yet. Start exercising and save your workouts!</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('historyContent').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">❌</div>
+                        <p>Error loading history: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function closeHistory() {
+            document.getElementById('historyModal').style.display = 'none';
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <strong>${type === 'success' ? '✅' : '❌'}</strong>
+                <p>${message}</p>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideInRight 0.3s reverse';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('historyModal');
+            if (event.target == modal) {
+                closeHistory();
+            }
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (ws) {
+                ws.close();
+            }
+        });
+    </script>
+</body>
+</html>
