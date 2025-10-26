@@ -194,6 +194,8 @@
 
         .notes {
             margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
         }
 
         .note-item {
@@ -203,6 +205,18 @@
             margin-bottom: 8px;
             border-radius: 5px;
             font-size: 14px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
         .status {
@@ -250,21 +264,6 @@
             color: #667eea;
         }
 
-        .form-score-bar {
-            width: 100%;
-            height: 20px;
-            background: #e0e0e0;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-
-        .form-score-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #38ef7d 0%, #11998e 100%);
-            transition: width 0.3s ease;
-        }
-
         .modal {
             display: none;
             position: fixed;
@@ -291,10 +290,10 @@
             max-width: 900px;
             max-height: 80vh;
             overflow-y: auto;
-            animation: slideIn 0.3s;
+            animation: slideInModal 0.3s;
         }
 
-        @keyframes slideIn {
+        @keyframes slideInModal {
             from { transform: translateY(-50px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
@@ -442,8 +441,16 @@
     </style>
 </head>
 <body>
+    <!-- Hidden audio elements for sound effects -->
+    <audio id="goodRepSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBzOM0fPTgjMGHm7A7+OZUQ0PVKzn7K5aGAg+muHwwW8gBSuBzvHaizsIGGS57OihUQ0PUKzn7K5aGAg+muHwwW8gBSuBzvHaizsIF2S57OihUQ0PUKzn7K5aGAg+muHwwW8gBSuBzvHaizsIF2S57OihUQ0PUKzn7K5aGAg+muHwwW8gBSuBzvHaizsIF2S57OihUQ0PUKzn7K5aGAg+muHwwW8gBSuBzvHaizsIF2S57OihUQ0PUKzn7K5aGA==" type="audio/wav">
+    </audio>
+    <audio id="badRepSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAAB4cnNwZ2hlZ2dmZWNhX11cW1lYV1ZVU1JTUVBQT05OTUxMTEtLSkpJSUhIR0dHRkZGRUVFREREQ0NDQ0JCQkJBQUFBQEBAQD8/Pz8+Pj4+Pj09PT09PDw8PDw7Ozs7Ozo6Ojo6OTk5OTk4ODg4ODg3Nzc3Nzc2NjY2NjY1NTU1NTU0NDQ0NDQzMzMzMzMzMjIyMjIyMjExMTExMTExMDAwMDAwMDAvLy8vLy8vLy4uLi4uLi4uLi0tLS0tLS0tLS0sLCwsLCwsLCwsKysrKysrKysrKysqKioqKioqKioqKioqKSkpKSkpKSkpKSkpKSkpKCgoKCgoKCgoKCgoKCgoKCcnJycnJycnJycnJycnJycnJycmJiYmJiYmJiYmJiYmJiYmJiYmJiYl" type="audio/wav">
+    </audio>
+
     <div class="container">
-        <h1>🏋️ AI Fitness Coach</h1>
+        <h1>🏋️REP RIGHT</h1>
         
         <div class="main-grid">
             <!-- Video Feed -->
@@ -499,26 +506,13 @@
                     </div>
                 </div>
 
-                <!-- Feedback -->
-                <div class="card">
-                    <h2>Form Feedback</h2>
-                    <div class="feedback-box feedback-neutral" id="feedback">
-                        Start exercising to get feedback
-                    </div>
-                    <div style="margin-top: 15px;">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Form Score</div>
-                        <div class="form-score-bar">
-                            <div class="form-score-fill" id="formScoreBar" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Notes -->
                 <div class="card">
                     <h2>Tips & Corrections</h2>
                     <div class="notes" id="notes">
                         <div style="color: #999; font-style: italic;">No tips yet - keep going!</div>
                     </div>
+                    <button onclick="clearTips()" style="margin-top: 10px; padding: 8px 16px; background: #f0f0f0; color: #666; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">Clear Tips</button>
                 </div>
             </div>
         </div>
@@ -543,6 +537,58 @@
     <script>
         let ws = null;
         let currentExercise = 'pushup';
+        let tipsHistory = [];
+        const MAX_TIPS = 10;
+
+        // Audio context for playing sounds
+        const goodRepAudio = document.getElementById('goodRepSound');
+        const badRepAudio = document.getElementById('badRepSound');
+
+        function playSound(type) {
+            try {
+                if (type === 'good') {
+                    goodRepAudio.currentTime = 0;
+                    goodRepAudio.play().catch(e => console.log('Audio play failed:', e));
+                } else if (type === 'bad') {
+                    badRepAudio.currentTime = 0;
+                    badRepAudio.play().catch(e => console.log('Audio play failed:', e));
+                }
+            } catch (e) {
+                console.log('Sound playback error:', e);
+            }
+        }
+
+        function addTip(tip) {
+            const timestamp = new Date().toLocaleTimeString();
+            tipsHistory.unshift({ text: tip, time: timestamp });
+            
+            // Keep only latest tips
+            if (tipsHistory.length > MAX_TIPS) {
+                tipsHistory = tipsHistory.slice(0, MAX_TIPS);
+            }
+            
+            updateTipsDisplay();
+        }
+
+        function updateTipsDisplay() {
+            const notesDiv = document.getElementById('notes');
+            
+            if (tipsHistory.length === 0) {
+                notesDiv.innerHTML = '<div style="color: #999; font-style: italic;">No tips yet - keep going!</div>';
+            } else {
+                notesDiv.innerHTML = tipsHistory.map(tip => 
+                    `<div class="note-item">
+                        <strong>${tip.time}</strong><br>
+                        💡 ${tip.text}
+                    </div>`
+                ).join('');
+            }
+        }
+
+        function clearTips() {
+            tipsHistory = [];
+            updateTipsDisplay();
+        }
 
         function connectWebSocket() {
             if (ws && ws.readyState === WebSocket.OPEN) {
@@ -581,37 +627,19 @@
                 document.getElementById('goodReps').textContent = totalGood;
                 document.getElementById('badReps').textContent = totalBad;
                 
-                // Update feedback
-                const feedbackBox = document.getElementById('feedback');
-                if (data.feedback) {
-                    feedbackBox.textContent = data.feedback;
-                    if (data.feedback.includes('Good')) {
-                        feedbackBox.className = 'feedback-box feedback-good';
-                        if (data.rep_event === 'good') {
-                            feedbackBox.classList.add('pulse');
-                            setTimeout(() => feedbackBox.classList.remove('pulse'), 1000);
-                        }
-                    } else if (data.feedback.includes('Bad')) {
-                        feedbackBox.className = 'feedback-box feedback-bad';
-                        if (data.rep_event === 'bad') {
-                            feedbackBox.classList.add('pulse');
-                            setTimeout(() => feedbackBox.classList.remove('pulse'), 1000);
-                        }
-                    }
+                // Handle sound events
+                if (data.sound_event) {
+                    playSound(data.sound_event);
                 }
                 
-                // Update form score
-                const formScore = (data.form_score || 0) * 100;
-                document.getElementById('formScoreBar').style.width = formScore + '%';
-                
-                // Update notes
-                const notesDiv = document.getElementById('notes');
+                // Update tips/notes
                 if (data.notes && data.notes.length > 0) {
-                    notesDiv.innerHTML = data.notes.map(note => 
-                        `<div class="note-item">💡 ${note}</div>`
-                    ).join('');
-                } else {
-                    notesDiv.innerHTML = '<div style="color: #999; font-style: italic;">No tips yet - keep going!</div>';
+                    data.notes.forEach(note => {
+                        // Only add unique tips
+                        if (!tipsHistory.some(t => t.text === note)) {
+                            addTip(note);
+                        }
+                    });
                 }
                 
                 // Update current exercise display
