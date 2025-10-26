@@ -1,13 +1,14 @@
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from datetime import datetime
+import pytz
 
 Base = declarative_base()
 
 class WorkoutSession(Base):
     __tablename__ = "workout_sessions"
     id = Column(Integer, primary_key=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=lambda: datetime.now(pytz.timezone('US/Eastern')))
     sets = relationship("WorkoutSet", back_populates="session")
 
 class WorkoutSet(Base):
