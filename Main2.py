@@ -254,7 +254,7 @@ def analyze_pushup(lms, w, h):
     
     shoulder_elbow_dist = abs(rs[0] - re[0])
     shoulder_width = abs(ls[0] - rs[0])
-    half_shoulder_width = shoulder_width * 0.5
+    half_shoulder_width = shoulder_width * 0.4
     elbow_ratio = shoulder_elbow_dist / half_shoulder_width if half_shoulder_width > 0 else 0
     
     elbow_above_shoulder = re[1] < rs[1]
