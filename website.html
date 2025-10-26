@@ -840,9 +840,21 @@
                 const historyContent = document.getElementById('historyContent');
                 
                 if (data.status === 'success' && data.sessions.length > 0) {
-                    historyContent.innerHTML = data.sessions.map(session => `
+                    historyContent.innerHTML = data.sessions.map(session => {
+                        // Format timestamp to 12-hour format
+                        const date = new Date(session.timestamp);
+                        const formattedDate = date.toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                        });
+                        return `
                         <div class="history-item">
-                            <h3>📅 ${session.timestamp}</h3>
+                            <h3>📅 ${formattedDate}</h3>
                             <div class="history-stats">
                                 ${session.exercises.map(ex => `
                                     <div class="history-stat">
@@ -859,7 +871,8 @@
                                 `).join('')}
                             </div>
                         </div>
-                    `).join('');
+                    `;
+                    }).join('');
                 } else {
                     historyContent.innerHTML = `
                         <div class="empty-state">
